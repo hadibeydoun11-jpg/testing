@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quoridor</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Courier+Prime:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0e0c09;
+            --board-bg: #1a1410;
+            --cell: #2a2018;
+            --cell-hover: #3a3020;
+            --wall-slot: #1e1a12;
+            --wall-placed-p1: #e8a020;
+            --wall-placed-p2: #4a9eff;
+            --wall-hover: rgba(255, 255, 255, 0.15);
+            --p1: #e8a020;
+            --p2: #4a9eff;
+            --p1-dark: #b07810;
+            --p2-dark: #2a6ecc;
+            --valid-move: rgba(255, 255, 255, 0.12);
+            --valid-border: rgba(255, 255, 255, 0.35);
+            --text: #e8e0d0;
+            --text-dim: #7a7060;
+            --accent: #c8a060;
+            --border: #3a3020;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Courier Prime', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(40, 30, 10, 0.4) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 50%, rgba(10, 20, 50, 0.4) 0%, transparent 60%);
+        }
+
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            text-shadow: 0 0 40px rgba(200, 160, 96, 0.3);
+        }
+
+        .subtitle {
+            font-size: 0.7rem;
+            letter-spacing: 0.35em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+
+        .game-layout {
+            display: flex;
+            gap: 28px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* PANEL */
+        .panel {
+            background: var(--board-bg);
+            border: 1px solid var(--border);
+            padding: 20px 18px;
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .player-card {
+            padding: 14px;
+            border: 1px solid var(--border);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .player-card.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px rgba(200, 160, 96, 0.1);
+        }
+
+        .player-card.active::before {
+            content: '▶';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent);
+            font-size: 0.7rem;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.3
+            }
+        }
+
+        .player-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .player-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .p1-color {
+            color: var(--p1);
+        }
+
+        .p2-color {
+            color: var(--p2);
+        }
+
+        .walls-left {
+            margin-top: 8px;
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .wall-pip {
+            width: 14px;
+            height: 5px;
+            border-radius: 1px;
+            transition: opacity 0.2s;
+        }
+
+        .wall-pip.p1 {
+            background: var(--p1);
+        }
+
+        .wall-pip.p2 {
+            background: var(--p2);
+        }
+
+        .wall-pip.used {
+            opacity: 0.2;
+        }
+
+        .wall-count-label {
+            font-size: 0.58rem;
+            color: var(--text-dim);
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-top: 6px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+        }
+
+        .status-box {
+            font-size: 0.7rem;
+            line-height: 1.6;
+            color: var(--text-dim);
+            letter-spacing: 0.05em;
+        }
+
+        .status-box .highlight {
+            color: var(--text);
+        }
+
+        .mode-toggle {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .mode-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.3em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .mode-btns {
+            display: flex;
+            gap: 4px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 7px 4px;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg);
+            font-weight: 700;
+        }
+
+        .mode-btn:hover:not(.active) {
+            border-color: var(--accent);
+            color: var(--text);
+        }
+
+        .btn-new {
+            padding: 10px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: 'Courier Prime', monospace;
+            font-size: 0.7rem;
+            letter-spacing: 0.25em;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-new:hover {
+            background: var(--accent);
+            color: var(--bg);
+        }
+
+        /* BOARD */
+        .board-wrapper {
+            position: relative;
+        }
+
+        #board-canvas {
+            display: block;
+            cursor: pointer;
+        }
+
+        /* WIN OVERLAY */
+        .win-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 8, 5, 0.88);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            backdrop-filter: blur(4px);
+        }
+
+        .win-overlay.show {
+            display: flex;
+        }
+
+        .win-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .win-sub {
+            font-size: 0.72rem;
+            letter-spacing: 0.3em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            animation: fadeInUp 0.5s ease 0.1s both;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Move log */
+        .move-log {
+            max-height: 130px;
+            overflow-y: auto;
+            font-size: 0.6rem;
+            line-height: 1.8;
+            color: var(--text-dim);
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+
+        .move-log span {
+            display: block;
+        }
+
+        .move-log span.p1e {
+            color: var(--p1);
+        }
+
+        .move-log span.p2e {
+            color: var(--p2);
+        }
+
+        .log-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.3em;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 680px) {
+            .panel {
+                width: 100%;
+                max-width: 420px;
+                flex-direction: row;
+                flex-wrap: wrap;
+                padding: 14px;
+            }
+
+            .player-card {
+                flex: 1;
+                min-width: 130px;
+            }
+
+            .move-log-section {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Quoridor</h1>
+    <p class="subtitle">A game of paths &amp; walls</p>
+
+    <div class="game-layout">
+
+        <!-- Left Panel -->
+        <div class="panel">
+            <div class="player-card" id="card1">
+                <div class="player-label">Player One</div>
+                <div class="player-name p1-color">&#9679; Gold</div>
+                <div class="wall-count-label">Walls remaining</div>
+                <div class="walls-left" id="walls1"></div>
+            </div>
+
+            <div class="player-card" id="card2">
+                <div class="player-label">Player Two</div>
+                <div class="player-name p2-color">&#9679; Blue</div>
+                <div class="wall-count-label">Walls remaining</div>
+                <div class="walls-left" id="walls2"></div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="mode-toggle">
+                <div class="mode-label">Place mode</div>
+                <div class="mode-btns">
+                    <button class="mode-btn active" id="btn-move" onclick="setMode('move')">Move</button>
+                    <button class="mode-btn" id="btn-wall" onclick="setMode('wall')">Wall</button>
+                </div>
+            </div>
+
+            <div class="mode-toggle">
+                <div class="mode-label">Wall direction</div>
+                <div class="mode-btns">
+                    <button class="mode-btn active" id="btn-h" onclick="setWallDir('H')">Horiz</button>
+                    <button class="mode-btn" id="btn-v" onclick="setWallDir('V')">Vert</button>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div>
+                <div class="status-box" id="status-box">
+                    <span class="highlight">Gold's turn</span><br>
+                    Click a highlighted cell to move, or switch to Wall mode.
+                </div>
+            </div>
+
+            <button class="btn-new" onclick="newGame()">&#8635; New Game</button>
+        </div>
+
+        <!-- Board -->
+        <div class="board-wrapper">
+            <canvas id="board-canvas"></canvas>
+            <div class="win-overlay" id="win-overlay">
+                <div class="win-title" id="win-title"></div>
+                <div class="win-sub">wins the game</div>
+                <button class="btn-new" style="width:180px" onclick="newGame()">Play Again</button>
+            </div>
+            <!-- Config overlay -->
+            <div class="win-overlay" id="config-overlay">
+                <div
+                    style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;">
+                    Game Settings</div>
+                <div
+                    style="font-size:0.62rem;letter-spacing:0.3em;color:var(--text-dim);text-transform:uppercase;margin-top:-6px;">
+                    Walls per player</div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4px;">
+                    <div style="font-family:'Playfair Display',serif;font-size:3rem;font-weight:900;color:var(--text);line-height:1;"
+                        id="cfg-wall-count">10</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">
+                        <button class="cfg-wall-btn mode-btn" data-val="8" onclick="setCfgWalls(8)">8</button>
+                        <button class="cfg-wall-btn mode-btn" data-val="9" onclick="setCfgWalls(9)">9</button>
+                        <button class="cfg-wall-btn mode-btn active" data-val="10" onclick="setCfgWalls(10)">10</button>
+                        <button class="cfg-wall-btn mode-btn" data-val="11" onclick="setCfgWalls(11)">11</button>
+                        <button class="cfg-wall-btn mode-btn" data-val="12" onclick="setCfgWalls(12)">12</button>
+                        <button class="cfg-wall-btn mode-btn" data-val="13" onclick="setCfgWalls(13)">13</button>
+                        <button class="cfg-wall-btn mode-btn" data-val="14" onclick="setCfgWalls(14)">14</button>
+                    </div>
+                </div>
+                <button class="btn-new" style="width:200px;margin-top:8px;" onclick="startGame()">&#9658; Start
+                    Game</button>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="panel">
+            <div class="move-log-section">
+                <div class="log-label">Move log</div>
+                <div class="move-log" id="move-log"></div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="status-box">
+                <span style="color:var(--accent);font-weight:700">How to play</span><br><br>
+                Race your pawn to the <span class="highlight">opposite row</span>.<br><br>
+                Each turn: <span class="highlight">move</span> your pawn OR <span class="highlight">place a
+                    wall</span>.<br><br>
+                Walls block paths but cannot completely trap a player.<br><br>
+                Each player has <span class="highlight" id="how-walls">10 walls</span> to use.
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="status-box">
+                <span style="color:var(--accent);font-weight:700">Controls</span><br><br>
+                <span class="highlight">M</span> — Move mode<br>
+                <span class="highlight">W</span> — Wall mode<br>
+                <span class="highlight">H / V</span> — Wall direction<br>
+                <span class="highlight">N</span> — New game
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ─── CONSTANTS ───────────────────────────────────────────────────────────────
+        const GRID = 9;          // 9×9 cells
+
+        // Canvas sizing
+        const CELL = 52;
+        const GAP = 10;          // wall slot width
+        const STEP = CELL + GAP; // 62px per cell+gap
+        const MARGIN = 24;
+        const BOARD_PX = MARGIN * 2 + GRID * CELL + (GRID - 1) * GAP;
+
+        // ─── SETTINGS (persist across games) ─────────────────────────────────────────
+        let settings = { wallsEach: 10 };
+
+        // ─── STATE ───────────────────────────────────────────────────────────────────
+        let state = {};
+
+        function newGame() {
+            // Show the pre-game config overlay instead of starting immediately
+            showConfig();
+        }
+
+        function startGame() {
+            const W = settings.wallsEach;
+            state = {
+                players: [
+                    { r: 0, c: 4, walls: W, goal: GRID - 1 },  // P1 starts top, goes to row 8
+                    { r: GRID - 1, c: 4, walls: W, goal: 0 },    // P2 starts bottom, goes to row 0
+                ],
+                // hWalls[r][c] = null | 0 | 1  (null = empty, 0/1 = placed by player index)
+                hWalls: Array.from({ length: GRID - 1 }, () => Array(GRID - 1).fill(null)),
+                // vWalls[r][c] = null | 0 | 1
+                vWalls: Array.from({ length: GRID - 1 }, () => Array(GRID - 1).fill(null)),
+                turn: 0,      // 0 = P1, 1 = P2
+                mode: 'move', // 'move' | 'wall'
+                wallDir: 'H', // 'H' | 'V'
+                validMoves: [],
+                hoverCell: null,
+                hoverWall: null,
+                winner: null,
+                log: [],
+            };
+            document.getElementById('win-overlay').classList.remove('show');
+            document.getElementById('config-overlay').classList.remove('show');
+            document.getElementById('move-log').innerHTML = '';
+            computeValidMoves();
+            // Reset mode buttons to match move default
+            document.getElementById('btn-move').classList.add('active');
+            document.getElementById('btn-wall').classList.remove('active');
+            render();
+            updateUI();
+        }
+
+        // ─── CONFIG OVERLAY ───────────────────────────────────────────────────────────
+        function showConfig() {
+            // Update the displayed wall count to current setting
+            updateConfigDisplay();
+            document.getElementById('config-overlay').classList.add('show');
+        }
+
+        function updateConfigDisplay() {
+            document.getElementById('cfg-wall-count').textContent = settings.wallsEach;
+            // Highlight active button
+            document.querySelectorAll('.cfg-wall-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.val) === settings.wallsEach);
+            });
+            // Update how-to-play text if element exists
+            const hw = document.getElementById('how-walls');
+            if (hw) hw.textContent = settings.wallsEach + ' walls';
+        }
+
+        function setCfgWalls(n) {
+            settings.wallsEach = n;
+            updateConfigDisplay();
+        }
+
+        // ─── WALL HELPERS ─────────────────────────────────────────────────────────────
+        // Horizontal wall at (r,c): between rows r & r+1, cols c & c+1
+        // Vertical wall at (r,c): between cols c & c+1, rows r & r+1
+
+        function wallBlocked(r1, c1, r2, c2) {
+            // moving from (r1,c1) to (r2,c2) — are we blocked by a wall?
+            // hWalls/vWalls are null (empty) or 0/1 (player index), so check !== null
+            if (r2 === r1 - 1) {
+                const wr = r1 - 1;
+                return (c1 < GRID - 1 && state.hWalls[wr][c1] !== null) || (c1 > 0 && state.hWalls[wr][c1 - 1] !== null);
+            }
+            if (r2 === r1 + 1) {
+                const wr = r1;
+                return (c1 < GRID - 1 && state.hWalls[wr][c1] !== null) || (c1 > 0 && state.hWalls[wr][c1 - 1] !== null);
+            }
+            if (c2 === c1 - 1) {
+                const wc = c1 - 1;
+                return (r1 < GRID - 1 && state.vWalls[r1][wc] !== null) || (r1 > 0 && state.vWalls[r1 - 1][wc] !== null);
+            }
+            if (c2 === c1 + 1) {
+                const wc = c1;
+                return (r1 < GRID - 1 && state.vWalls[r1][wc] !== null) || (r1 > 0 && state.vWalls[r1 - 1][wc] !== null);
+            }
+            return false;
+        }
+
+        function canMove(r, c, dr, dc) {
+            const nr = r + dr, nc = c + dc;
+            if (nr < 0 || nr >= GRID || nc < 0 || nc >= GRID) return false;
+            if (wallBlocked(r, c, nr, nc)) return false;
+            return true;
+        }
+
+        // BFS to check player can reach goal
+        function hasPath(player) {
+            const { r, c, goal } = player;
+            const visited = Array.from({ length: GRID }, () => Array(GRID).fill(false));
+            const queue = [[r, c]];
+            visited[r][c] = true;
+            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            while (queue.length) {
+                const [cr, cc] = queue.shift();
+                if (cr === goal) return true;
+                for (const [dr, dc] of dirs) {
+                    const nr2 = cr + dr, nc2 = cc + dc;
+                    if (nr2 < 0 || nr2 >= GRID || nc2 < 0 || nc2 >= GRID) continue;
+                    if (visited[nr2][nc2]) continue;
+                    if (wallBlocked(cr, cc, nr2, nc2)) continue;
+                    visited[nr2][nc2] = true;
+                    queue.push([nr2, nc2]);
+                }
+            }
+            return false;
+        }
+
+        function wallValid(type, wr, wc) {
+            // Check bounds
+            if (wr < 0 || wr >= GRID - 1 || wc < 0 || wc >= GRID - 1) return false;
+
+            if (type === 'H') {
+                if (state.hWalls[wr][wc] !== null) return false;
+                if (state.vWalls[wr][wc] !== null) return false;
+                if (wc > 0 && state.hWalls[wr][wc - 1] !== null) return false;
+                if (wc < GRID - 2 && state.hWalls[wr][wc + 1] !== null) return false;
+            } else {
+                if (state.vWalls[wr][wc] !== null) return false;
+                if (state.hWalls[wr][wc] !== null) return false;
+                if (wr > 0 && state.vWalls[wr - 1][wc] !== null) return false;
+                if (wr < GRID - 2 && state.vWalls[wr + 1][wc] !== null) return false;
+            }
+
+            // Temporarily place and check paths
+            if (type === 'H') state.hWalls[wr][wc] = state.turn;
+            else state.vWalls[wr][wc] = state.turn;
+
+            const ok = hasPath(state.players[0]) && hasPath(state.players[1]);
+
+            if (type === 'H') state.hWalls[wr][wc] = null;
+            else state.vWalls[wr][wc] = null;
+
+            return ok;
+        }
+
+        // ─── MOVE LOGIC ──────────────────────────────────────────────────────────────
+        function computeValidMoves() {
+            const p = state.players[state.turn];
+            const opp = state.players[1 - state.turn];
+            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+            const moves = [];
+
+            for (const [dr, dc] of dirs) {
+                const nr = p.r + dr, nc = p.c + dc;
+                if (nr < 0 || nr >= GRID || nc < 0 || nc >= GRID) continue;
+                if (wallBlocked(p.r, p.c, nr, nc)) continue;
+
+                // If opponent is there, try to jump
+                if (nr === opp.r && nc === opp.c) {
+                    // jump straight
+                    const jr = nr + dr, jc = nc + dc;
+                    if (jr >= 0 && jr < GRID && jc >= 0 && jc < GRID && !wallBlocked(nr, nc, jr, jc)) {
+                        moves.push([jr, jc]);
+                    } else {
+                        // side jumps
+                        for (const [sdr, sdc] of dirs) {
+                            if (sdr === dr && sdc === dc) continue;
+                            if (sdr === -dr && sdc === -dc) continue;
+                            const sr = nr + sdr, sc = nc + sdc;
+                            if (sr >= 0 && sr < GRID && sc >= 0 && sc < GRID && !wallBlocked(nr, nc, sr, sc)) {
+                                moves.push([sr, sc]);
+                            }
+                        }
+                    }
+                } else {
+                    moves.push([nr, nc]);
+                }
+            }
+
+            state.validMoves = moves;
+        }
+
+        function doMove(r, c) {
+            const p = state.players[state.turn];
+            const label = state.turn === 0 ? 'Gold' : 'Blue';
+            addLog(`${label} moved to (${r + 1},${c + 1})`, state.turn);
+            p.r = r; p.c = c;
+            if (r === p.goal) {
+                state.winner = state.turn;
+                showWin();
+                return;
+            }
+            state.turn = 1 - state.turn;
+            // Always reset to move mode at start of each turn
+            state.mode = 'move';
+            state.hoverWall = null;
+            document.getElementById('btn-move').classList.add('active');
+            document.getElementById('btn-wall').classList.remove('active');
+            computeValidMoves();
+            updateUI();
+            render();
+        }
+
+        function doWall(type, wr, wc) {
+            const label = state.turn === 0 ? 'Gold' : 'Blue';
+            const placer = state.turn;
+            if (type === 'H') {
+                state.hWalls[wr][wc] = placer;
+                addLog(`${label} placed H-wall at (${wr + 1},${wc + 1})`, placer);
+            } else {
+                state.vWalls[wr][wc] = placer;
+                addLog(`${label} placed V-wall at (${wr + 1},${wc + 1})`, placer);
+            }
+            state.players[state.turn].walls--;
+            state.turn = 1 - state.turn;
+            // Always reset to move mode at start of each turn
+            state.mode = 'move';
+            state.hoverWall = null;
+            document.getElementById('btn-move').classList.add('active');
+            document.getElementById('btn-wall').classList.remove('active');
+            computeValidMoves();
+            updateUI();
+            render();
+        }
+
+        function showWin() {
+            const colors = ['Gold', 'Blue'];
+            const el = document.getElementById('win-title');
+            el.textContent = colors[state.winner];
+            el.style.color = state.winner === 0 ? 'var(--p1)' : 'var(--p2)';
+            document.getElementById('win-overlay').classList.add('show');
+            updateUI();
+            render();
+        }
+
+        // ─── UI HELPERS ──────────────────────────────────────────────────────────────
+        function setMode(m) {
+            state.mode = m;
+            state.hoverWall = null;
+            document.getElementById('btn-move').classList.toggle('active', m === 'move');
+            document.getElementById('btn-wall').classList.toggle('active', m === 'wall');
+            updateUI();
+            render();
+        }
+
+        function setWallDir(d) {
+            state.wallDir = d;
+            state.hoverWall = null;
+            document.getElementById('btn-h').classList.toggle('active', d === 'H');
+            document.getElementById('btn-v').classList.toggle('active', d === 'V');
+            render();
+        }
+
+        function addLog(msg, player) {
+            state.log.push({ msg, player });
+            const div = document.getElementById('move-log');
+            const span = document.createElement('span');
+            span.className = player === 0 ? 'p1e' : 'p2e';
+            span.textContent = (state.log.length) + '. ' + msg;
+            div.appendChild(span);
+            div.scrollTop = div.scrollHeight;
+        }
+
+        function updateUI() {
+            // Cards
+            document.getElementById('card1').classList.toggle('active', state.turn === 0 && !state.winner);
+            document.getElementById('card2').classList.toggle('active', state.turn === 1 && !state.winner);
+
+            // Wall pips
+            for (let p = 0; p < 2; p++) {
+                const el = document.getElementById('walls' + (p + 1));
+                el.innerHTML = '';
+                for (let i = 0; i < settings.wallsEach; i++) {
+                    const pip = document.createElement('div');
+                    pip.className = 'wall-pip ' + (p === 0 ? 'p1' : 'p2');
+                    if (i >= state.players[p].walls) pip.classList.add('used');
+                    el.appendChild(pip);
+                }
+            }
+
+            // Status
+            const sb = document.getElementById('status-box');
+            if (state.winner !== null) {
+                sb.innerHTML = `<span style="color:${state.winner === 0 ? 'var(--p1)' : 'var(--p2)'};font-weight:700">${state.winner === 0 ? 'Gold' : 'Blue'} wins!</span>`;
+            } else {
+                const who = state.turn === 0 ? '<span style="color:var(--p1)">Gold</span>' : '<span style="color:var(--p2)">Blue</span>';
+                const modeStr = state.mode === 'move'
+                    ? 'Click a highlighted cell to move.'
+                    : `Click a wall slot to place a <b>${state.wallDir === 'H' ? 'horizontal' : 'vertical'}</b> wall.`;
+                sb.innerHTML = `${who}'s turn<br><span style="color:var(--text-dim);font-size:0.65rem">${modeStr}</span>`;
+            }
+        }
+
+        // ─── CANVAS RENDER ────────────────────────────────────────────────────────────
+        const canvas = document.getElementById('board-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = canvas.height = BOARD_PX;
+
+        function cellXY(r, c) {
+            // top-left pixel of cell (r,c)
+            return [MARGIN + c * STEP, MARGIN + r * STEP];
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, BOARD_PX, BOARD_PX);
+
+            // Board background
+            ctx.fillStyle = '#161008';
+            ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+
+            // Draw cells
+            for (let r = 0; r < GRID; r++) {
+                for (let c = 0; c < GRID; c++) {
+                    const [x, y] = cellXY(r, c);
+                    // Goal rows
+                    let fill = '#1e1910';
+                    if (r === 0) fill = 'rgba(74,158,255,0.08)';
+                    if (r === GRID - 1) fill = 'rgba(232,160,32,0.08)';
+                    ctx.fillStyle = fill;
+                    ctx.fillRect(x, y, CELL, CELL);
+
+                    // Grid lines
+                    ctx.strokeStyle = '#2a2218';
+                    ctx.lineWidth = 0.5;
+                    ctx.strokeRect(x, y, CELL, CELL);
+                }
+            }
+
+            // Goal indicators (subtle lines)
+            ctx.fillStyle = 'rgba(232,160,32,0.25)';
+            ctx.fillRect(MARGIN, MARGIN + (GRID - 1) * STEP - 2, GRID * CELL + (GRID - 1) * GAP, 3);
+            ctx.fillStyle = 'rgba(74,158,255,0.25)';
+            ctx.fillRect(MARGIN, MARGIN + 1, GRID * CELL + (GRID - 1) * GAP, 3);
+
+            // Valid move highlights
+            if (state.mode === 'move' && !state.winner) {
+                for (const [mr, mc] of state.validMoves) {
+                    const [x, y] = cellXY(mr, mc);
+                    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+                    ctx.fillRect(x, y, CELL, CELL);
+                    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(x + 1, y + 1, CELL - 2, CELL - 2);
+                }
+            }
+
+            // Hover cell highlight
+            if (state.hoverCell && state.mode === 'move' && !state.winner) {
+                const [hr, hc] = state.hoverCell;
+                const isValid = state.validMoves.some(([r, c]) => r === hr && c === hc);
+                if (isValid) {
+                    const [x, y] = cellXY(hr, hc);
+                    ctx.fillStyle = 'rgba(255,255,255,0.13)';
+                    ctx.fillRect(x, y, CELL, CELL);
+                }
+            }
+
+            // Draw placed walls
+            // H walls
+            for (let r = 0; r < GRID - 1; r++) {
+                for (let c = 0; c < GRID - 1; c++) {
+                    if (state.hWalls[r][c] !== null) {
+                        const x = MARGIN + c * STEP;
+                        const y = MARGIN + (r + 1) * STEP - GAP;
+                        const w = 2 * CELL + GAP;
+                        drawWallRect(x, y, w, GAP, state.hWalls[r][c]);
+                    }
+                }
+            }
+            // V walls
+            for (let r = 0; r < GRID - 1; r++) {
+                for (let c = 0; c < GRID - 1; c++) {
+                    if (state.vWalls[r][c] !== null) {
+                        const x = MARGIN + (c + 1) * STEP - GAP;
+                        const y = MARGIN + r * STEP;
+                        const h = 2 * CELL + GAP;
+                        drawWallRect(x, y, GAP, h, state.vWalls[r][c]);
+                    }
+                }
+            }
+
+            // Hover wall preview
+            if (state.hoverWall && state.mode === 'wall' && !state.winner) {
+                const { type, r: wr, c: wc, valid } = state.hoverWall;
+                ctx.save();
+                ctx.globalAlpha = 0.65;
+                if (type === 'H') {
+                    const x = MARGIN + wc * STEP;
+                    const y = MARGIN + (wr + 1) * STEP - GAP;
+                    drawWallRect(x, y, 2 * CELL + GAP, GAP, valid ? state.turn : -1);
+                } else {
+                    const x = MARGIN + (wc + 1) * STEP - GAP;
+                    const y = MARGIN + wr * STEP;
+                    drawWallRect(x, y, GAP, 2 * CELL + GAP, valid ? state.turn : -1);
+                }
+                ctx.restore();
+            }
+
+            // Draw wall gap slots (subtle)
+            ctx.fillStyle = '#12100a';
+            for (let r = 0; r < GRID - 1; r++) {
+                for (let c = 0; c < GRID; c++) {
+                    const [x, y] = cellXY(r, c);
+                    ctx.fillRect(x, y + CELL, CELL, GAP);
+                }
+            }
+            for (let r = 0; r < GRID; r++) {
+                for (let c = 0; c < GRID - 1; c++) {
+                    const [x, y] = cellXY(r, c);
+                    ctx.fillRect(x + CELL, y, GAP, CELL);
+                }
+            }
+
+            // Re-draw walls on top of gap slots
+            for (let r = 0; r < GRID - 1; r++) {
+                for (let c = 0; c < GRID - 1; c++) {
+                    if (state.hWalls[r][c] !== null) {
+                        const x = MARGIN + c * STEP;
+                        const y = MARGIN + (r + 1) * STEP - GAP;
+                        drawWallRect(x, y, 2 * CELL + GAP, GAP, state.hWalls[r][c]);
+                    }
+                }
+            }
+            for (let r = 0; r < GRID - 1; r++) {
+                for (let c = 0; c < GRID - 1; c++) {
+                    if (state.vWalls[r][c] !== null) {
+                        const x = MARGIN + (c + 1) * STEP - GAP;
+                        const y = MARGIN + r * STEP;
+                        drawWallRect(x, y, GAP, 2 * CELL + GAP, state.vWalls[r][c]);
+                    }
+                }
+            }
+
+            // Re-draw hover wall
+            if (state.hoverWall && state.mode === 'wall' && !state.winner) {
+                const { type, r: wr, c: wc, valid } = state.hoverWall;
+                ctx.save();
+                ctx.globalAlpha = 0.7;
+                if (type === 'H') {
+                    const x = MARGIN + wc * STEP;
+                    const y = MARGIN + (wr + 1) * STEP - GAP;
+                    drawWallRect(x, y, 2 * CELL + GAP, GAP, valid ? state.turn : -1);
+                } else {
+                    const x = MARGIN + (wc + 1) * STEP - GAP;
+                    const y = MARGIN + wr * STEP;
+                    drawWallRect(x, y, GAP, 2 * CELL + GAP, valid ? state.turn : -1);
+                }
+                ctx.restore();
+            }
+
+            // Draw pawns
+            drawPawn(state.players[0], 0);
+            drawPawn(state.players[1], 1);
+        }
+
+        function drawWallRect(x, y, w, h, player) {
+            // player: 0 = gold, 1 = blue, -1 = invalid (red)
+            if (player === -1) {
+                ctx.fillStyle = 'rgba(200,60,60,0.7)';
+            } else {
+                ctx.fillStyle = player === 0 ? '#e8a020' : '#4a9eff';
+            }
+            ctx.fillRect(x, y, w, h);
+            // Sheen
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            if (w > h) {
+                ctx.fillRect(x, y, w, 2);
+            } else {
+                ctx.fillRect(x, y, 2, h);
+            }
+        }
+
+        function drawPawn(player, idx) {
+            const [x, y] = cellXY(player.r, player.c);
+            const cx = x + CELL / 2, cy = y + CELL / 2;
+            const R = CELL * 0.32;
+            const color = idx === 0 ? '#e8a020' : '#4a9eff';
+            const darkColor = idx === 0 ? '#b07810' : '#2a6ecc';
+            const isActive = state.turn === idx && !state.winner;
+
+            // Glow
+            if (isActive) {
+                ctx.save();
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 18;
+                ctx.beginPath();
+                ctx.arc(cx, cy, R, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Shadow
+            ctx.beginPath();
+            ctx.ellipse(cx + 2, cy + 3, R * 0.85, R * 0.35, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fill();
+
+            // Body
+            const grad = ctx.createRadialGradient(cx - R * 0.25, cy - R * 0.25, R * 0.05, cx, cy, R);
+            grad.addColorStop(0, lighten(color, 0.4));
+            grad.addColorStop(0.6, color);
+            grad.addColorStop(1, darkColor);
+            ctx.beginPath();
+            ctx.arc(cx, cy, R, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Highlight
+            ctx.beginPath();
+            ctx.arc(cx - R * 0.2, cy - R * 0.25, R * 0.3, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.fill();
+        }
+
+        function lighten(hex, amount) {
+            let r = parseInt(hex.slice(1, 3), 16);
+            let g = parseInt(hex.slice(3, 5), 16);
+            let b = parseInt(hex.slice(5, 7), 16);
+            r = Math.min(255, Math.round(r + (255 - r) * amount));
+            g = Math.min(255, Math.round(g + (255 - g) * amount));
+            b = Math.min(255, Math.round(b + (255 - b) * amount));
+            return `rgb(${r},${g},${b})`;
+        }
+
+        // ─── INPUT ───────────────────────────────────────────────────────────────────
+        function pixelToCell(px, py) {
+            // Returns {r, c} or null
+            const lx = px - MARGIN, ly = py - MARGIN;
+            if (lx < 0 || ly < 0) return null;
+            const c = Math.floor(lx / STEP);
+            const r = Math.floor(ly / STEP);
+            if (c >= GRID || r >= GRID) return null;
+            const cx = lx - c * STEP, cy = ly - r * STEP;
+            if (cx < CELL && cy < CELL) return { r, c };
+            return null;
+        }
+
+        function pixelToWallSlot(px, py, type) {
+            // Returns {r, c} for the wall slot or null
+            const lx = px - MARGIN, ly = py - MARGIN;
+            if (lx < 0 || ly < 0) return null;
+
+            if (type === 'H') {
+                // H wall: in the horizontal gap between rows
+                // gap for row r is at y = r*STEP + CELL .. r*STEP + CELL + GAP (r=0..GRID-2)
+                // x covers cell c and c+1: c*STEP .. c*STEP + 2*CELL + GAP
+                for (let r = 0; r < GRID - 1; r++) {
+                    const gy = r * STEP + CELL;
+                    if (ly >= gy && ly < gy + GAP) {
+                        // find c: wall covers cells c,c+1 so x from c*STEP
+                        for (let c = 0; c < GRID - 1; c++) {
+                            const gx = c * STEP;
+                            if (lx >= gx && lx < gx + 2 * CELL + GAP) {
+                                return { r, c };
+                            }
+                        }
+                    }
+                }
+            } else {
+                // V wall: in the vertical gap between cols
+                for (let c = 0; c < GRID - 1; c++) {
+                    const gx = c * STEP + CELL;
+                    if (lx >= gx && lx < gx + GAP) {
+                        for (let r = 0; r < GRID - 1; r++) {
+                            const gy = r * STEP;
+                            if (ly >= gy && ly < gy + 2 * CELL + GAP) {
+                                return { r, c };
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        canvas.addEventListener('mousemove', e => {
+            if (state.winner) return;
+            const rect = canvas.getBoundingClientRect();
+            const px = (e.clientX - rect.left) * (BOARD_PX / rect.width);
+            const py = (e.clientY - rect.top) * (BOARD_PX / rect.height);
+
+            if (state.mode === 'move') {
+                const cell = pixelToCell(px, py);
+                state.hoverCell = cell ? [cell.r, cell.c] : null;
+                state.hoverWall = null;
+            } else {
+                state.hoverCell = null;
+                const slot = pixelToWallSlot(px, py, state.wallDir);
+                if (slot && state.players[state.turn].walls > 0) {
+                    const valid = wallValid(state.wallDir, slot.r, slot.c);
+                    state.hoverWall = { type: state.wallDir, r: slot.r, c: slot.c, valid };
+                } else {
+                    state.hoverWall = null;
+                }
+            }
+            render();
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            state.hoverCell = null;
+            state.hoverWall = null;
+            render();
+        });
+
+        canvas.addEventListener('click', e => {
+            if (state.winner) return;
+            const rect = canvas.getBoundingClientRect();
+            const px = (e.clientX - rect.left) * (BOARD_PX / rect.width);
+            const py = (e.clientY - rect.top) * (BOARD_PX / rect.height);
+
+            if (state.mode === 'move') {
+                const cell = pixelToCell(px, py);
+                if (!cell) return;
+                const isValid = state.validMoves.some(([r, c]) => r === cell.r && c === cell.c);
+                if (isValid) doMove(cell.r, cell.c);
+            } else {
+                if (state.players[state.turn].walls <= 0) return;
+                const slot = pixelToWallSlot(px, py, state.wallDir);
+                if (!slot) return;
+                if (wallValid(state.wallDir, slot.r, slot.c)) {
+                    doWall(state.wallDir, slot.r, slot.c);
+                }
+            }
+        });
+
+        // Touch support
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            canvas.dispatchEvent(new MouseEvent('click', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            }));
+        }, { passive: false });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', e => {
+            const k = e.key.toUpperCase();
+            if (k === 'M') setMode('move');
+            if (k === 'W') setMode('wall');
+            if (k === 'H') setWallDir('H');
+            if (k === 'V') setWallDir('V');
+            if (k === 'N') newGame();
+        });
+
+        // ─── INIT ────────────────────────────────────────────────────────────────────
+        // Draw blank board and show config on first load
+        ctx.fillStyle = '#161008';
+        ctx.fillRect(0, 0, BOARD_PX, BOARD_PX);
+        for (let r = 0; r < GRID; r++) {
+            for (let c = 0; c < GRID; c++) {
+                const x = MARGIN + c * STEP, y = MARGIN + r * STEP;
+                ctx.fillStyle = r === 0 ? 'rgba(74,158,255,0.08)' : r === GRID - 1 ? 'rgba(232,160,32,0.08)' : '#1e1910';
+                ctx.fillRect(x, y, CELL, CELL);
+                ctx.strokeStyle = '#2a2218'; ctx.lineWidth = 0.5;
+                ctx.strokeRect(x, y, CELL, CELL);
+            }
+        }
+        showConfig();
+    </script>
+</body>
+
+</html>
